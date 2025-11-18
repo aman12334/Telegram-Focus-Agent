@@ -1,0 +1,79 @@
+Product Requirements – Focus Agent
+
+1. Product summary
+
+Focus Agent is a lightweight assistant that protects deep work while keeping conversations moving on Telegram.
+
+When the user turns on Focus mode on macOS, the agent:
+- Starts a Focus session
+- Auto replies on Telegram as the user’s AI assistant
+- Logs every human and bot message
+- Sends the user a summary and follow ups when Focus ends
+
+2. Problem
+
+Knowledge workers need long uninterrupted blocks of time, but real time chat keeps pulling them out of flow.
+
+Current issues:
+- Messages pile up when the user is in Focus mode
+- People feel ignored while the user is working
+- The user feels guilty or ends up context switching to reply
+- There is no structured summary of what happened while they were offline
+
+3. Goals
+
+- Protect the user’s attention during Focus mode
+- Give contacts a warm, clear response instead of silence
+- Capture all conversations in a structured log
+- Deliver a concise summary and action items when Focus ends
+- Run on a zero budget stack using Make, Telegram and a hosted LLM
+
+4. Users and primary use case
+
+Primary user
+- Individual contributor or PM who uses macOS Focus mode and Telegram for work or networking
+
+Key scenario
+- User turns Focus on
+- Telegram messages arrive from friends, recruiters or teammates
+- Agent replies as the user’s assistant and logs everything
+- When Focus is turned off, user receives a summary email and can reply in their own time
+
+5. Functional requirements
+
+FR1 – Start Focus session
+- When macOS Focus mode turns on, call a Make webhook
+- Create or update a FocusSessions record with status = active
+
+FR2 – Handle incoming Telegram messages during an active session
+- Detect messages for the active session
+- Log each human message into Messages_log with session_id, contact_id, text and timestamp
+- For first message from a contact in a session, send a short intro message
+- For later messages, build context and call an LLM to generate a reply
+
+FR3 – Generate AI reply
+- Build a prompt from recent Messages_log rows and basic user context
+- Call a hosted LLM model through OpenRouter
+- Send the reply back to the contact on Telegram
+- Log the bot reply into Messages_log
+
+FR4 – End Focus session and send summary
+- When macOS Focus mode turns off, call a second webhook
+- Mark the active FocusSessions record as ended and set end_time
+- Pull all Messages_log rows for that session
+- Aggregate them and ask the LLM for a summary plus key follow ups
+- Email the summary to the user
+
+6. Non functional requirements
+
+- Zero infrastructure hosting for the workflow
+- No paid tools required to run a basic version
+- Easy to fork and adapt for another Telegram account
+- Clear path to move to a local LLM later if hardware allows
+
+7. Future ideas
+
+- Add urgency flags so the assistant can mark true emergencies
+- Per contact preferences such as “do not auto reply”
+- Local LLM via Ollama for people who want stronger privacy guarantees
+- Support for other channels like Slack or WhatsApp Business

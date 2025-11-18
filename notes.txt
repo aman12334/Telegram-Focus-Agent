@@ -1,0 +1,168 @@
+Implementation notes and setup guide
+
+0. Important security note
+
+The original Make blueprints for this project contained my real API keys and email. 
+Those should never be committed to a public repo.
+
+In this repo you should only commit sanitized JSON with placeholders like:
+- YOUR_TELEGRAM_BOT_TOKEN
+- YOUR_OPENROUTER_API_KEY
+- YOUR_GMAIL_ADDRESS
+
+Anyone who forks this repo must replace those placeholders with their own values
+inside Make after importing the blueprints, or by editing the JSON before import.
+
+1. Files in this repo
+
+- about.txt
+  Product style description of Focus Agent
+
+- notes.txt
+  This setup guide and some implementation details
+
+- Integration Telegram Bot.blueprint.json
+  Make scenario that listens to Telegram, logs messages and calls the LLM
+
+- Integration Webhooks, Data store.blueprint.json
+  Make scenario that manages FocusSessions using webhooks and the data store
+
+2. Required accounts and keys
+
+You need your own credentials before you can run the scenarios:
+
+- Telegram Bot token
+  Create a bot with BotFather on Telegram and copy the token
+
+- Google account
+  For Google Sheets and Gmail modules
+
+- OpenRouter API key
+  Sign up at openrouter.ai and create an API key. This is used for the mistral model
+
+Do not reuse my keys and do not hardcode them in source control.
+
+3. How to set up the Make scenarios step by step
+
+Step 1 – Create the data store
+
+1. In Make, go to Data stores and create a new store named FocusSessions
+2. Add fields:
+   - id (text)
+   - start_time (text or date)
+   - end_time (text or date)
+   - status (text)
+
+Step 2 – Create the log sheet
+
+1. In Google Sheets create a spreadsheet, for example FocusAgent
+2. Add a sheet named Messages_log
+3. Add columns:
+   - session_id
+   - contact_id
+   - contact_name
+   - direction
+   - timestamp
+   - text
+
+Step 3 – Import the blueprints
+
+1. In Make, click Scenarios, then Import blueprint
+2. Import Integration Webhooks, Data store.blueprint.json
+3. Import Integration Telegram Bot.blueprint.json
+4. After import, open each scenario and reconnect modules that show a red warning
+
+Make will ask you to create new connections instead of using mine.
+
+Step 4 – Replace API keys and emails
+
+Inside the Telegram scenario:
+
+1. Telegram Bot modules
+   - Open the “Watch updates” and “Send a text message” modules
+   - Click Add or Reconnect
+   - Use your own Telegram bot token
+
+2. Google Sheets modules
+   - Reconnect with your own Google account
+   - Point them to your FocusAgent spreadsheet and Messages_log sheet
+
+3. HTTP (OpenRouter) module
+   - Open the HTTP → Make a request module
+   - Under Headers, replace the Authorization header value:
+     Authorization: Bearer YOUR_OPENROUTER_API_KEY
+   - Make sure Content-Type is application/json
+   - Keep the model as mistralai/mistral-nemo or change to another supported model
+
+4. Gmail module
+   - Open the Gmail Send an email module
+   - Connect your own Gmail account
+   - Replace any hardcoded addresses like my email with your own:
+     To: YOUR_GMAIL_ADDRESS
+   - You can use the same address in the From field or let Gmail choose the default
+
+If you prefer not to edit JSON by hand, do all of this directly in the Make UI
+after importing the blueprint. The blueprint JSON in the repo should use only
+placeholder strings, never real secrets.
+
+Step 5 – Configure the LLM prompt
+
+In the Telegram scenario there is a Tools – Set variable module named something like Build prompt.
+
+It combines:
+- Recent conversation history from the Messages_log sheet
+- The current incoming Telegram message
+- Instructions that say the bot is Aman's assistant, not Aman
+
+You can customize:
+- Tone of voice
+- When to mention your own projects
+- Whether to include more or less history in the prompt
+
+Step 6 – Connect macOS Focus shortcuts
+
+You need two webhooks from the Webhooks scenario:
+
+- focus_session_start webhook URL
+- focus_session_end webhook URL
+
+On macOS:
+
+1. Open Shortcuts and create a shortcut named Focus Agent ON
+2. Add actions:
+   - Turn Focus mode Personal On until Turned Off
+   - Open URL with the focus_session_start webhook
+   - Optionally Get contents of URL if you want to see a response
+
+3. Create a shortcut named Focus Agent OFF
+4. Add actions:
+   - Turn Focus mode Personal Off
+   - Open URL with the focus_session_end webhook
+
+When you run Focus Agent ON, it will create an active FocusSessions record.
+When you run Focus Agent OFF, it will mark that session as ended and trigger
+the summary flow.
+
+4. Local LLM option with Ollama
+
+Right now this project uses a hosted LLM through OpenRouter for simplicity.
+
+If you want a stronger security layer you can:
+- Run Ollama locally on your machine
+- Replace the HTTP module URL with http://localhost:11434/v1/chat or similar
+- Remove the external API key and use a local model instead
+
+I did not adopt this by default because my laptop capacity is limited
+and I wanted a responsive, zero maintenance setup.
+
+5. Summary
+
+- Do not commit real keys, tokens or personal emails
+- Use the blueprints as templates with placeholders
+- After importing them into Make, replace the placeholders with your own values
+- Follow the steps above to connect Telegram, Sheets, OpenRouter and Gmail
+- Wire up macOS Focus shortcuts with the provided webhook URLs
+
+Once everything is connected, turning Focus mode on will start the agent and 
+turning Focus mode off will send you a full summary of what your assistant 
+handled while you were deep in work.
